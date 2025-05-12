@@ -745,7 +745,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
 
 
     /**
-     * Penaliza al jugador que no hizo su jugada en 20 segundos
+     * Penaliza al jugador que no hizo su jugada en 20 segundos==
      */
     private void onTurnTimeOut() {
         fight.penalizeNoAction();
