@@ -2,7 +2,9 @@ package domain;
 
 public class Forcejeo extends MovePoobKemon {
     public Forcejeo() {
-        super("Forcejeo", TypePoobKemon.NORMAL, Category.FISICO,
+        super("Forcejeo",
+                TypePoobKemon.NORMAL,
+                Category.FISICO,
                 50,
                 100,
                 1,
@@ -12,19 +14,20 @@ public class Forcejeo extends MovePoobKemon {
 
     @Override
     public void run(PoobKemon attacker, PoobKemon objective) {
+        use();
+
         int dmg = calculateDamage(
                 attacker.getMove(),
                 objective.getDefense(),
-                this.getMoveType(),
+                getMoveType(),
                 objective.getTypePoobKemon()
         );
         objective.takeDamage(dmg);
+        log(String.format("%s usó Forcejeo e hizo %d puntos de daño.", attacker.getName(), dmg));
 
         int recoil = Math.max(1, dmg / 2);
         attacker.takeDamage(recoil);
-
-        System.out.printf("%s usó Forcejeo e hizo %d puntos de daño.%n", attacker.getName(), dmg);
-        System.out.printf("%s recibió %d puntos de daño por retroceso.%n", attacker.getName(), recoil);
+        log(String.format("%s recibió %d puntos de daño por retroceso.", attacker.getName(), recoil));
     }
 }
 

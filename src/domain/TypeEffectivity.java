@@ -4,7 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * Utilidad para consultar la efectividad de tipos.
+ * Utilidad para consultar la efectividad de tipos
  */
 class TypeEffectivity {
     private static final Map<TypePoobKemon, Map<TypePoobKemon, Double>> tabla =

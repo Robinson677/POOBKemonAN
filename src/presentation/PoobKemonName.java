@@ -25,7 +25,7 @@ public class PoobKemonName extends JFrame implements KeyListener {
     private final JLabel       nameLabel;
     private final StringBuilder playerName = new StringBuilder();
 
-    private boolean uppercase  = true;
+    private boolean upperCase  = true;
     private boolean teamChosen = false;
     private boolean isTeamAzul = true;
     private int     selectedIndex = 0;
@@ -164,14 +164,14 @@ public class PoobKemonName extends JFrame implements KeyListener {
         if (selectedIndex < CHARS.length()) {
             if (playerName.length() < MAX_NAME) {
                 char c = CHARS.charAt(selectedIndex);
-                playerName.append(uppercase ? c : Character.toLowerCase(c));
+                playerName.append(upperCase ? c : Character.toLowerCase(c));
                 nameLabel.setText(playerName.toString());
             }
         } else if (selectedIndex == 28) {
-            uppercase = !uppercase;
+            upperCase = !upperCase;
             for (int i = 0; i < CHARS.length(); i++) {
                 char c = CHARS.charAt(i);
-                gridLabels.get(i).setText(" " + (uppercase ? c : Character.toLowerCase(c)) + " ");
+                gridLabels.get(i).setText(" " + (upperCase ? c : Character.toLowerCase(c)) + " ");
             }
         } else if (selectedIndex == 29) {
             finishAction();
@@ -208,6 +208,7 @@ public class PoobKemonName extends JFrame implements KeyListener {
             showWarning("¡Ese equipo ya lo eligió el Jugador " + (pickOrder[0] + 1) + "!");
             return;
         }
+
         int slot = pickOrder[picksDone];
         fight.addTrainer(new domain.Trainer(playerName.toString(), color), slot + 1);
         picksDone++;

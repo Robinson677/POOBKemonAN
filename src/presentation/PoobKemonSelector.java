@@ -4,6 +4,8 @@ import domain.PoobKemonFight;
 import javax.swing.*;
 import java.awt.*;
 import java.net.URL;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Encargada de que cada entrenador elija 6 pokemones de 36
@@ -11,6 +13,11 @@ import java.net.URL;
 public class PoobKemonSelector extends JFrame {
     private PoobKemonFight fight;
     private int currentTurn;
+    private int[] picksCount = { 0, 0 };
+    private final int initialPickerIndex;
+    private static final int MAX_PICKS = 6;
+    private final List<String> selectedKeys = new ArrayList<>();
+
 
     private JLabel lblName;
     private JLabel imgPok;
@@ -23,6 +30,7 @@ public class PoobKemonSelector extends JFrame {
     private static final int BUTTON_WIDTH = 125;
     private static final int BUTTON_HEIGHT = 57;
 
+
     /**
      * Constructor de PoobKemonSelector
      * Prepara lo que se va a mostrar en pantalla junto los 36 botones para da pokemon
@@ -30,7 +38,8 @@ public class PoobKemonSelector extends JFrame {
      */
     public PoobKemonSelector(PoobKemonFight fight) {
         this.fight = fight;
-        this.currentTurn = fight.getInitialTurn();
+        this.initialPickerIndex = fight.getInitialPickerIndex();
+        this.currentTurn = initialPickerIndex;
 
         setTitle("POOBKemon Selector");
         setSize(930, 673);
@@ -185,35 +194,32 @@ public class PoobKemonSelector extends JFrame {
      * Cuando los 2 elijan pasan al combate
      */
     private void onCombatButton() {
-        if (fight.readyToCombat()) {
-            dispose();
-            new PoobKemonCombat(fight).setVisible(true);
+        if (picksCount[currentTurn] < MAX_PICKS) {
+            JOptionPane.showMessageDialog(this,
+                    "Aún te faltan " + (MAX_PICKS - picksCount[currentTurn]) +
+                            " Pokémon por elegir.", "Faltan selecciones",
+                    JOptionPane.WARNING_MESSAGE
+            );
             return;
         }
 
-        if (!fight.hasSelected(currentTurn)) {
-            String name = fight.getTrainerName(currentTurn);
-            String team = fight.getTrainerTeam(currentTurn);
-            showTurnDialog(name, team);
+        if (currentTurn == initialPickerIndex) {
+            fight.nextTurn();
+            currentTurn = 1 - currentTurn;
+            showTurnDialog(
+                    fight.getTrainerName(currentTurn),
+                    fight.getTrainerTeam(currentTurn)
+            );
             return;
         }
 
-        fight.nextTurn();
-        currentTurn = 1 - currentTurn;
-
-        if (fight.readyToCombat()) {
-            dispose();
-            new PoobKemonCombat(fight).setVisible(true);
-        } else {
-            String nextName = fight.getTrainerName(currentTurn);
-            String nextTeam = fight.getTrainerTeam(currentTurn);
-            showTurnDialog(nextName, nextTeam);
-        }
+        dispose();
+        new PoobKemonCombat(fight).setVisible(true);
     }
 
-    /**
-     *  Se devuelve a la pantalla de inicial y resetea todo
-     */
+        /**
+         *  Se devuelve a la pantalla de inicial y resetea todo
+         */
     private void onExitButton() {
         fight.resetSelection();
         SwingUtilities.invokeLater(() -> {
@@ -301,15 +307,20 @@ public class PoobKemonSelector extends JFrame {
         choose.addActionListener(e -> {
             boolean ok = fight.selectPokemon(key);
             if (ok) {
-                JOptionPane.showMessageDialog(
-                        this,
+
+                picksCount[currentTurn]++;
+                selectedKeys.add(key);
+
+                JOptionPane.showMessageDialog(this,
                         "Has elegido a " + fight.getDisplayName(key),
                         "Seleccionar Pokémon",
                         JOptionPane.INFORMATION_MESSAGE
                 );
                 dialog.dispose();
+                repaint();
             }
         });
+
 
         remove.addActionListener(e -> {
             onRemoveButton();
