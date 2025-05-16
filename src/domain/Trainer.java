@@ -5,16 +5,23 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
+import java.io.Serializable;
+import java.io.ObjectInputStream;
+import java.io.IOException;
+
+
 /**
  * Los entrendadores luchan entre ellos usando sus pokemones y items
  */
-public class Trainer {
+public class Trainer implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String name;
     private String colorTeam;
     private List<PoobKemon> team;
     private int activeIndex = 0;
     private int usedItemCount;
-    private final Map<String, Item> items = new HashMap<>();
+    private transient Map<String, Item> items = new HashMap<>();
     private int potions    = 2;
     private int superPotions = 2;
     private int hyperPotions = 2;
@@ -37,6 +44,8 @@ public class Trainer {
         items.put("REVIVIR", new Revive());
 
     }
+
+
 
     /**
      * Obtiene el nombre del entrenador
@@ -207,6 +216,34 @@ public class Trainer {
      */
     public int getRevives() {
         return revive;
+    }
+
+    /**
+     * Selecciona un equipo aleatoriamente
+     */
+    public void autoSelectTeam(PoobKemonFight fight) throws POOBKemonException {
+    }
+
+    /**
+     * Identifica si este entrenador es IA
+     */
+    public boolean isAI() {
+        return false;
+    }
+
+    /**
+     * Reconstruimos el map
+     * @param in
+     * @throws java.io.IOException
+     * @throws ClassNotFoundException
+     */
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        items = new HashMap<>();
+        items.put("POCION", new Potion());
+        items.put("SUPERPOCION", new SuperPotion());
+        items.put("HIPERPOCION", new HyperPotion());
+        items.put("REVIVIR", new Revive());
     }
 
 }

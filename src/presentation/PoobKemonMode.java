@@ -11,13 +11,16 @@ import java.net.URL;
  */
 public class PoobKemonMode extends JFrame {
     private final PoobKemonFight fight;
+    private final boolean survivalMode;
+
 
     /**
-     * Contructor de PoobKemonMode
-     * @param fight representa la preparacion para la batalla
+     * @param fight  representa la preparacion para la batalla
+     * @param survivalMode preparacion para la batalla extrema
      */
-    public PoobKemonMode(PoobKemonFight fight) {
+    public PoobKemonMode(PoobKemonFight fight, boolean survivalMode) {
         this.fight = fight;
+        this.survivalMode = survivalMode;
         final domain.Trainer player1 = fight.getTrainer1();
         final domain.Trainer player2 = fight.getTrainer2();
         setTitle("Modo de Juego de POOBKemon");
@@ -51,15 +54,19 @@ public class PoobKemonMode extends JFrame {
         };
         panel.setLayout(null);
 
+        //Batalla Normal
         JButton normalButton = createTransparentButton(225, 140, 527, 62);
         normalButton.addActionListener(e -> {
             dispose();
-            new PoobKemonModality(fight);
+            new PoobKemonModality(fight, false).setVisible(true);
         });
 
+        //Batalla Superviviencia
         JButton survivalButton = createTransparentButton(185, 300, 662, 57);
-        survivalButton.addActionListener(e ->
-                JOptionPane.showMessageDialog(this, "Modo Supervivencia aún no  esta implementado."));
+        survivalButton.addActionListener(e -> {
+            dispose();
+            new PoobKemonModality(fight, true).setVisible(true);
+        });
 
         JButton exitButton = createTransparentButton(665, 495, 200, 53);
         exitButton.addActionListener(e -> {

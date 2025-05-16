@@ -1,10 +1,14 @@
 package domain;
 
+import java.io.Serializable;
+
 /**
  * Representa un movimiento que puede usar un Pokémon.
  */
 
-public abstract class MovePoobKemon {
+public abstract class MovePoobKemon implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     public enum Category { FISICO, ESPECIAL, ESTADO }
     private String name;
     private TypePoobKemon type;
@@ -225,6 +229,35 @@ public abstract class MovePoobKemon {
         }
     }
 
+
+    /**
+     * @return la categoria del movimiento si es FISICO, ESPECIAL o ESTADO
+     */
+    public Category getCategory() {
+        return category;
+    }
+
+    /**
+     * @return la potencia de daño que puede llegar a inflingir
+     */
+    public int getPotency() {
+        return potency;
+    }
+
+    /**
+     * @return la descripción del efecto secundario o null
+     */
+    public String getSecondaryEffect() {
+        return secundaryEffect;
+    }
+
+    /**
+     * Para las subclases
+     * @param fight logica del combate
+     */
+    public void setFightReference(PoobKemonFight fight) {
+    }
+
     /**
      * @return un String de movimiento con el formato que definimos
      */
@@ -232,4 +265,6 @@ public abstract class MovePoobKemon {
     public String toString() {
         return String.format("%s [%s] PP: %d/%d", name, category, ppCurrent, powerPoints);
     }
+
+
 }

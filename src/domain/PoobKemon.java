@@ -2,12 +2,13 @@ package domain;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.Serializable;
 
 /**
  * Clase abstracta que representa un Pokemon en POOBKemon
  * Todos los pokemon se consideran nivel de 100
  */
-public abstract class PoobKemon {
+public abstract class PoobKemon implements Serializable {
     protected String name;
     protected TypePoobKemon type;
     protected int ppCurrent;
@@ -28,6 +29,7 @@ public abstract class PoobKemon {
     protected String description;
     protected String resourceName;
     protected double attackModifier = 1.0;
+    protected boolean skipNextTurn = false;
 
     /**
      * Crea un Pokémon de nivel fijo 100.
@@ -325,6 +327,32 @@ public abstract class PoobKemon {
         double m = attackModifier;
         attackModifier = 1.0;
         return m;
+    }
+
+    /**
+     * Marca un pokemon que perdera su proximo turno
+     */
+    public void markSkipNextTurn() {
+        this.skipNextTurn = true;
+    }
+
+    /**
+     * Mira si debe perder el turno
+     * @return true si pierde turno si no es false
+     */
+    public boolean shouldSkipNextTurn() {
+        if (skipNextTurn) {
+            skipNextTurn = false;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Para las subclases
+     * @param fight logica del combate
+     */
+    public void setFightReference(PoobKemonFight fight) {
     }
 
     /**

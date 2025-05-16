@@ -1,13 +1,19 @@
 package presentation;
 
-import domain.PoobKemonFight;
-import domain.Trainer;
+import domain.*;
+import domain.PoobKemonFight.UIState;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Batalla POOBKemon entre dos entrenadores, cada uno con 6 pokemones de diferentes tipos
@@ -16,6 +22,7 @@ import java.util.List;
 public class PoobKemonCombat extends JFrame implements KeyListener {
     private final PoobKemonFight fight;
     private int currentTurn;
+    private final boolean bothAI;
     private final boolean[] pokemonChosen = {false, false};
     private boolean battleStarted = false;
     private boolean inBattleSelect = false;
@@ -39,7 +46,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     };
 
     private enum State {
-        MENU, BATTLE, MOVE_SELECT, COMBAT, BACKPACK, POKEMON_SELECT, ITEM_SELECT, LOG
+        MENU, BATTLE, MOVE_SELECT, COMBAT, BACKPACK, POKEMON_SELECT, ITEM_SELECT, LOG, PAUSED
     }
 
     private State state = State.MENU;
@@ -47,8 +54,8 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     private int moveCount;
 
     private int selection = 0;
-    private final JLabel cursorLabel;
-    private final BackgroundPanel contentPanel;
+    private JLabel cursorLabel;
+    private BackgroundPanel contentPanel;
     private PoobKemonBackPack backpackPanel;
     private PokemonSelectionPanel pokemonPanel;
 
@@ -65,9 +72,18 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     public PoobKemonCombat(PoobKemonFight fight) {
         super("Tablero Combate");
         this.fight = fight;
+        this.bothAI = fight.getTrainer1().isAI() && fight.getTrainer2().isAI();
         fight.resetTurnToInitial();
         this.currentTurn = fight.getInitialPickerIndex();
-        setSize(930, 673);
+        if (fight.getTrainer1().isAI() ^ fight.getTrainer2().isAI()) {
+            if (fight.getCurrentTrainer().isAI()) {
+                fight.nextTurn();
+                this.currentTurn = 1 - this.currentTurn;
+            }
+        }
+        setJMenuBar(createMenuBar());
+        int menuBarHeight = getJMenuBar().getPreferredSize().height;
+        setSize(930, 673 + menuBarHeight);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
@@ -87,23 +103,194 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         requestFocusInWindow();
 
         setVisible(true);
-        String firstName = fight.getTrainerName(currentTurn);
-        String firstTeam = fight.getTrainerTeam(currentTurn);
-        showTurnDialog(firstName, firstTeam,
-                String.format("Turno de %s del team %s", firstName, firstTeam));
+
+        if (bothAI) {
+            for (int i = 0; i < 2; i++) {
+                AITrainer ai = (AITrainer) (i == 0 ? fight.getTrainer1() : fight.getTrainer2());
+                int switchIdx = ai.autoChooseSwitch(fight);
+                String key = ai.getTeam().get(switchIdx).getName().toUpperCase();
+                fight.switchActivePokemon(key);
+                pokemonChosen[i] = true;
+                fight.nextTurn();
+                currentTurn = 1 - currentTurn;
+            }
+            battleStarted = true;
+            enterCombat();
+        } else {
+            String firstName = fight.getTrainerName(currentTurn);
+            String firstTeam = fight.getTrainerTeam(currentTurn);
+            if (!fight.getCurrentTrainer().isAI()) {
+                showTurnDialog(firstName, firstTeam,
+                        String.format("Turno de %s del team %s", firstName, firstTeam));
+            } else {
+                enterPokemonSelect();
+            }
+        }
+    }
+
+    /**
+     * Constructor para reanudar un estado de combate previamente guardado.
+     * Simplemente muestra el tablero en estado MENU.
+     */
+    public PoobKemonCombat(PoobKemonFight fight, boolean resume) {
+        super("Tablero Combate");
+        this.fight = fight;
+        this.bothAI = fight.getTrainer1().isAI() && fight.getTrainer2().isAI();
+        this.currentTurn = fight.getInitialTurn();
+
+        setJMenuBar(createMenuBar());
+        int menuH = getJMenuBar().getPreferredSize().height;
+        setSize(930, 673 + menuH);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setResizable(false);
+        setLocationRelativeTo(null);
+
+        for (PoobKemon p : fight.getTrainer1().getTeam()) {
+            p.setFightReference(fight);
+            for (MovePoobKemon m : p.getMovements()) {
+                m.setFightReference(fight);
+            }
+        }
+        for (PoobKemon p : fight.getTrainer2().getTeam()) {
+            p.setFightReference(fight);
+            for (MovePoobKemon m : p.getMovements()) {
+                m.setFightReference(fight);
+            }
+        }
+
+        contentPanel = new BackgroundPanel("/pokemonPictures/PoobKemonTablero.png");
+        contentPanel.setLayout(null);
+        setContentPane(contentPanel);
+
+        cursorLabel = new JLabel("▶");
+        cursorLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 35));
+        cursorLabel.setSize(35, 35);
+        contentPanel.add(cursorLabel);
+
+        pokemonChosen[0] = true;
+        pokemonChosen[1] = true;
+        battleStarted = true;
+
+        UIState last = fight.getUiState();
+        switch (last) {
+            case MENU:
+                state = State.MENU;
+                showBoardScreen();
+                updateCursor();
+                break;
+            case BACKPACK:
+                state = State.BACKPACK;
+                showBoardScreen();
+                enterBackpack();
+                break;
+            case POKEMON_SELECT:
+                state = State.POKEMON_SELECT;
+                showBoardScreen();
+                enterPokemonSelect();
+                break;
+            case ITEM_SELECT:
+                state = State.ITEM_SELECT;
+                showBoardScreen();
+                enterItemSelect(fight.getLastPendingItem());
+                break;
+            case MOVE_SELECT:
+                state = State.MOVE_SELECT;
+                showBoardScreen();
+                enterMoveSelect();
+                break;
+            case LOG:
+                state = State.LOG;
+                showBoardScreen();
+                displayLog(fight.drainLog());
+                break;
+            default:
+                state = State.MENU;
+                showBoardScreen();
+                updateCursor();
+        }
+
+        addKeyListener(this);
+        setFocusable(true);
+        setVisible(true);
+    }
+
+
+
+    /**
+     * Crea el menú superior con las opciones Guardar/Cargar.
+     */
+    private JMenuBar createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+
+        JMenu fileMenu = new JMenu("Archivo");
+        menuBar.add(fileMenu);
+
+        JMenuItem save = new JMenuItem("Guardar");
+        save.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                try {
+                    fight.saveToFile(file.getAbsolutePath());
+                    JOptionPane.showMessageDialog(this,
+                            "Partida guardada en:\n" + file.getAbsolutePath(),
+                            "Guardado exitoso",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this,
+                            "Error al guardar:\n" + ex.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        fileMenu.add(save);
+
+        JMenuItem load = new JMenuItem("Cargar");
+        load.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            int result = chooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File file = chooser.getSelectedFile();
+                try {
+                    PoobKemonFight loaded = PoobKemonFight.loadFromFile(file.getAbsolutePath());
+                    this.dispose();
+                    PoobKemonCombat ventana = new PoobKemonCombat(loaded, true);
+                    ventana.setVisible(true);
+                } catch (IOException | ClassNotFoundException ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(this,
+                            "Error al cargar:\n" + ex.getMessage(),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                System.out.println("DEBUG: showOpenDialog no se aprobo :(");
+            }
+        });
+        fileMenu.add(load);
+
+        return menuBar;
     }
 
     /**
      * Para los mensajes de quitar daño de los movimientos de los pokemones
-     *
      * @param messages en lista de los movimientos
      */
     private void displayLog(List<String> messages) {
         this.logMessages = new ArrayList<>(messages);
         showBoardScreen();
         state = State.LOG;
+        fight.setUiState(UIState.LOG);
         cursorLabel.setVisible(false);
         repaint();
+
+        if (bothAI) {
+            new Timer(2500, ev -> {
+                ((Timer)ev.getSource()).stop();
+                handleLogAdvance();
+               }).start();
+        }
     }
 
 
@@ -127,8 +314,26 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
 
-        if (turnTimer != null && turnTimer.isRunning()) {
-            turnTimer.restart();
+        if (e.getKeyCode() == KeyEvent.VK_P) {
+            if (state != State.PAUSED) {
+                State prevState = state;
+                state = State.PAUSED;
+                fight.setUiState(UIState.PAUSED);
+                if (turnTimer != null && turnTimer.isRunning()) turnTimer.stop();
+                if (animationTimer != null && animationTimer.isRunning()) animationTimer.stop();
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "POOBKemon en pausa.\nPulsa Aceptar para reanudar.",
+                        "PAUSA",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+
+                state = prevState;
+                if (turnTimer != null) turnTimer.start();
+                if (animationTimer != null) animationTimer.start();
+            }
+            return;
         }
 
         if (state == State.ITEM_SELECT) {
@@ -138,6 +343,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                     return;
                 case KeyEvent.VK_ESCAPE:
                     state = State.BACKPACK;
+                    fight.setUiState(UIState.BACKPACK);
                     enterBackpack();
                     return;
                 default:
@@ -180,6 +386,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                     break;
                 case KeyEvent.VK_ESCAPE:
                     state = State.MENU;
+                    fight.setUiState(UIState.MENU);
                     updateCursor();
                     return;
             }
@@ -188,7 +395,13 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             return;
         }
 
-        if (state == State.LOG && (e.getKeyCode() == KeyEvent.VK_ENTER || e.getKeyCode() == KeyEvent.VK_ESCAPE)) {
+        if (state == State.LOG) {
+            if (!fight.getCurrentTrainer().isAI()) {
+                if (!(e.getKeyCode() == KeyEvent.VK_ENTER || e.getKeyCode() == KeyEvent.VK_ESCAPE)) {
+                    return;
+                }
+            }
+
             boolean p1Defeated = fight.isTrainerDefeated(0);
             boolean p2Defeated = fight.isTrainerDefeated(1);
 
@@ -199,33 +412,20 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                 String message = String.format("¡%s del team %s ha ganado la batalla!", winnerName, winnerTeam);
 
                 Color bg = "azul".equalsIgnoreCase(winnerTeam) ? Color.CYAN : Color.PINK;
-
                 ImageIcon trophyIcon = null;
                 URL trophyUrl = getClass().getResource("/pokemonPictures/trofeo.png");
-                if (trophyUrl != null) {
-                    trophyIcon = new ImageIcon(trophyUrl);
-                }
+                if (trophyUrl != null) trophyIcon = new ImageIcon(trophyUrl);
 
                 JPanel panel = new JPanel(new BorderLayout());
                 panel.setBackground(bg);
-
                 JLabel lbl = new JLabel(message, SwingConstants.CENTER);
-                lbl.setOpaque(false);
                 lbl.setFont(new Font("Press Start 2P", Font.PLAIN, 14));
                 panel.add(lbl, BorderLayout.NORTH);
-
                 if (trophyIcon != null) {
                     JLabel iconLbl = new JLabel(trophyIcon, SwingConstants.CENTER);
-                    iconLbl.setOpaque(false);
                     panel.add(iconLbl, BorderLayout.CENTER);
                 }
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        panel,
-                        "Fin del juego",
-                        JOptionPane.PLAIN_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this, panel, "Fin del juego", JOptionPane.PLAIN_MESSAGE);
 
                 fight.resetSelection();
                 dispose();
@@ -235,18 +435,36 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
 
             fight.nextTurn();
             currentTurn = 1 - currentTurn;
-            showBoardScreen();
 
-            if (fight.getPokemonCurrentHp(currentTurn) == 0) {
+            if (fight.getCurrentTrainer().isAI() && fight.getPokemonCurrentHp(currentTurn) == 0) {
+                AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+                int switchIdx = ai.autoChooseSwitch(fight);
+                String key = fight.getCurrentTrainer()
+                        .getTeam()
+                        .get(switchIdx)
+                        .getName()
+                        .toUpperCase();
+                fight.switchActivePokemon(key);
+                fight.nextTurn();
+                currentTurn = 1 - currentTurn;
+            }
+
+            showBoardScreen();
+            if (fight.getCurrentTrainer().isAI()) {
+                enterMoveSelect();
+            }
+            else if (fight.getPokemonCurrentHp(currentTurn) == 0) {
+                inBattleSelect = true;
                 setContentPane(contentPanel);
                 contentPanel.setBackgroundImage("/pokemonPictures/PoobKemonTablero.png");
                 contentPanel.revalidate();
                 contentPanel.repaint();
-
-                inBattleSelect = true;
                 enterPokemonSelect();
-            } else {
+            }
+
+            else {
                 state = State.MENU;
+                fight.setUiState(UIState.MENU);
                 selection = 0;
                 updateCursor();
             }
@@ -328,16 +546,51 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     private void executeMenuSelection() {
         switch (selection) {
             case 0: //Combate
+
                 if (!pokemonChosen[currentTurn]) {
-                    showTurnDialog(fight.getTrainerName(currentTurn),
-                            fight.getTrainerTeam(currentTurn),
-                            String.format("Elige un Pokémon %s team %s",
+                    if (fight.getCurrentTrainer().isAI()) {
+                        AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+                        int switchIdx = ai.autoChooseSwitch(fight);
+                        String key = fight.getCurrentTrainer()
+                                .getTeam()
+                                .get(switchIdx)
+                                .getName()
+                                .toUpperCase();
+                        fight.switchActivePokemon(key);
+                        pokemonChosen[currentTurn] = true;
+
+                        if (pokemonChosen[0] && pokemonChosen[1]) {
+                            battleStarted = true;
+                            enterCombat();
+                        } else {
+
+                            fight.nextTurn();
+                            currentTurn = 1 - currentTurn;
+                            showTurnDialog(
                                     fight.getTrainerName(currentTurn),
-                                    fight.getTrainerTeam(currentTurn)));
-                } else if (!battleStarted && pokemonChosen[0] && pokemonChosen[1]) {
+                                    fight.getTrainerTeam(currentTurn),
+                                    String.format("Turno de %s del team %s",
+                                            fight.getTrainerName(currentTurn),
+                                            fight.getTrainerTeam(currentTurn)
+                                    )
+                            );
+                        }
+                    } else {
+                        showTurnDialog(
+                                fight.getTrainerName(currentTurn),
+                                fight.getTrainerTeam(currentTurn),
+                                String.format("Elige un Pokémon %s team %s",
+                                        fight.getTrainerName(currentTurn),
+                                        fight.getTrainerTeam(currentTurn)
+                                )
+                        );
+                    }
+                }
+                else if (!battleStarted && pokemonChosen[0] && pokemonChosen[1]) {
                     battleStarted = true;
                     enterCombat();
-                } else if (battleStarted) {
+                }
+                else if (battleStarted) {
                     showBattleScreen();
                     enterMoveSelect();
                 }
@@ -398,13 +651,25 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
 
     private void enterMoveSelect() {
         state = State.MOVE_SELECT;
+        fight.setUiState(UIState.MOVE_SELECT);
         moveSelection = 0;
         moveCount = fight.getMoveCount();
         Point p = MOVE_CURSOR_POS[moveSelection];
         cursorLabel.setLocation(p.x, p.y);
         cursorLabel.setVisible(true);
-        startTurnTimer();
+
+        if (!bothAI) {
+            startTurnTimer();
+        }
         repaint();
+
+        if (fight.getCurrentTrainer().isAI()) {
+            AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+            int idx = ai.autoChooseMove(fight);
+            fight.useMove(idx);
+            List<String> log = fight.drainLog();
+            displayLog(log);
+        }
     }
 
 
@@ -451,6 +716,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
      */
     private void enterCombat() {
         state = State.COMBAT;
+        fight.setUiState(UIState.COMBAT);
         contentPanel.setBackgroundImage("/pokemonPictures/PoobKemonLucha.png");
         cursorLabel.setVisible(false);
         battleStarted = true;
@@ -520,6 +786,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         revalidate();
         repaint();
         state = State.BATTLE;
+        fight.setUiState(UIState.BATTLE);
     }
 
     /**
@@ -556,7 +823,9 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         setContentPane(bp);
         revalidate();
         repaint();
-        startTurnTimer();
+        if (!bothAI && !fight.getCurrentTrainer().isAI()) {
+            startTurnTimer();
+        }
     }
 
 
@@ -565,6 +834,8 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
      */
     private void enterBackpack() {
         if (turnTimer != null) turnTimer.stop();
+        state = State.BACKPACK;
+        fight.setUiState(UIState.BACKPACK);
         setContentPane(contentPanel);
         revalidate();
 
@@ -586,6 +857,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
      */
     public void cancelBackpack() {
         state = State.MENU;
+        fight.setUiState(UIState.MENU);
         if (backpackPanel != null) {
             backpackPanel.setVisible(false);
         }
@@ -608,9 +880,10 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
      * Comienza el flujo al usar un item
      */
     public void enterItemSelect(String item) {
+        fight.setLastPendingItem(item);
         this.pendingItem = item;
         this.state = State.ITEM_SELECT;
-
+        fight.setUiState(UIState.ITEM_SELECT);
 
         if (backpackPanel != null) {
             backpackPanel.setVisible(false);
@@ -649,6 +922,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         showBoardScreen();
         displayLog(log);
         state = State.LOG;
+        fight.setUiState(UIState.LOG);
         contentPanel.revalidate();
         contentPanel.repaint();
     }
@@ -660,6 +934,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     private void enterPokemonSelect() {
         if (turnTimer != null) turnTimer.stop();
         state = State.POKEMON_SELECT;
+        fight.setUiState(UIState.POKEMON_SELECT);
         cursorLabel.setVisible(false);
 
         List<String> teamKeys = fight.getCurrentTrainerPokemonKeys();
@@ -679,6 +954,22 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
      * Sale de la seleccion de pokemones y marca que ya un jugador eligio a su pokemon
      */
     private void exitPokemonSelect() {
+
+        if (fight.getCurrentTrainer().isAI() && battleStarted) {
+            AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+            int switchIdx = ai.autoChooseSwitch(fight);
+            String key = fight.getCurrentTrainer()
+                    .getTeam()
+                    .get(switchIdx)
+                    .getName()
+                    .toUpperCase();
+            fight.switchActivePokemon(key);
+
+            showBoardScreen();
+            enterMoveSelect();
+            return;
+        }
+
         contentPanel.remove(pokemonPanel);
         pokemonPanel.setVisible(false);
 
@@ -687,6 +978,8 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             fight.nextTurn();
             currentTurn = 1 - currentTurn;
             state = State.MENU;
+            fight.setUiState(UIState.MENU);
+
             showBoardScreen();
             selection = 0;
             updateCursor();
@@ -694,29 +987,48 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         }
 
         pokemonChosen[currentTurn] = true;
-
         contentPanel.setBackgroundImage("/pokemonPictures/PoobKemonTablero.png");
         state = State.MENU;
+        fight.setUiState(UIState.MENU);
         selection = 0;
         updateCursor();
         requestFocusInWindow();
 
         if (pokemonChosen[0] && pokemonChosen[1]) {
-            battleStarted = false;
-        } else {
-            fight.nextTurn();
-            currentTurn = 1 - currentTurn;
-            showTurnDialog(
-                    fight.getTrainerName(currentTurn),
-                    fight.getTrainerTeam(currentTurn),
-                    String.format(
-                            "Turno de %s del team %s",
-                            fight.getTrainerName(currentTurn),
-                            fight.getTrainerTeam(currentTurn)
-                    )
-            );
+            battleStarted = true;
+            enterCombat();
+            return;
         }
+
+        fight.nextTurn();
+        currentTurn = 1 - currentTurn;
+
+        if (fight.getCurrentTrainer().isAI() && !battleStarted) {
+            AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+            int switchIdx = ai.autoChooseSwitch(fight);
+            String key = fight.getCurrentTrainer()
+                    .getTeam()
+                    .get(switchIdx)
+                    .getName()
+                    .toUpperCase();
+            fight.switchActivePokemon(key);
+
+            pokemonChosen[currentTurn] = true;
+            battleStarted = true;
+            enterCombat();
+            return;
+        }
+
+        showTurnDialog(
+                fight.getTrainerName(currentTurn),
+                fight.getTrainerTeam(currentTurn),
+                String.format("Turno de %s del team %s",
+                        fight.getTrainerName(currentTurn),
+                        fight.getTrainerTeam(currentTurn)
+                )
+        );
     }
+
 
     /**
      * Cancela la seleccion del pokemon si aun no se esta en battalla
@@ -724,10 +1036,83 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
     private void cancelPokemonSelect() {
         inBattleSelect = false;
         state = State.MENU;
+        fight.setUiState(UIState.MENU);
         showBoardScreen();
         selection = 0;
         updateCursor();
         requestFocusInWindow();
+    }
+
+
+    /**
+     * Avanza el estado desde el log cambiando el turno y maneja el KO
+     */
+    private void handleLogAdvance() {
+        boolean p1Defeated = fight.isTrainerDefeated(0);
+        boolean p2Defeated = fight.isTrainerDefeated(1);
+        if (p1Defeated || p2Defeated) {
+            int winnerIdx = p1Defeated ? 1 : 0;
+            String winnerName = fight.getTrainerName(winnerIdx);
+            String winnerTeam = fight.getTrainerTeam(winnerIdx);
+
+            Color bg = "azul".equalsIgnoreCase(winnerTeam) ? Color.CYAN : Color.PINK;
+
+            ImageIcon trophyIcon = null;
+
+            URL trophyUrl = getClass().getResource("/pokemonPictures/trofeo.png");
+            if (trophyUrl != null) {
+                trophyIcon = new ImageIcon(trophyUrl);
+            }
+
+            JPanel panel = new JPanel(new BorderLayout());
+            panel.setBackground(bg);
+            JLabel lbl = new JLabel(
+                    String.format("¡%s del team %s ha ganado la batalla!", winnerName, winnerTeam),
+                    SwingConstants.CENTER
+            );
+
+            lbl.setFont(new Font("Press Start 2P", Font.PLAIN, 14));
+            panel.add(lbl, BorderLayout.NORTH);
+            if (trophyIcon != null) {
+                JLabel iconLbl = new JLabel(trophyIcon, SwingConstants.CENTER);
+                panel.add(iconLbl, BorderLayout.CENTER);
+            }
+
+            JOptionPane.showMessageDialog(this, panel, "Fin del juego", JOptionPane.PLAIN_MESSAGE);
+            fight.resetSelection();
+            dispose();
+            new StartPoobKemon().setVisible(true);
+            return;
+        }
+
+        fight.nextTurn();
+        currentTurn = 1 - currentTurn;
+
+        if (fight.getCurrentTrainer().isAI() && fight.getPokemonCurrentHp(currentTurn) == 0) {
+            AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+            int switchIdx = ai.autoChooseSwitch(fight);
+            String key = ai.getTeam().get(switchIdx).getName().toUpperCase();
+            fight.switchActivePokemon(key);
+            fight.nextTurn();
+            currentTurn = 1 - currentTurn;
+        }
+
+        showBoardScreen();
+        if (fight.getCurrentTrainer().isAI()) {
+            enterMoveSelect();
+        } else if (fight.getPokemonCurrentHp(currentTurn) == 0) {
+            inBattleSelect = true;
+            setContentPane(contentPanel);
+            contentPanel.setBackgroundImage("/pokemonPictures/PoobKemonTablero.png");
+            contentPanel.revalidate();
+            contentPanel.repaint();
+            enterPokemonSelect();
+        } else {
+            state = State.MENU;
+            fight.setUiState(UIState.MENU);
+            selection = 0;
+            updateCursor();
+        }
     }
 
 
@@ -764,6 +1149,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         } else {
             showBoardScreen();
             state = State.MENU;
+            fight.setUiState(UIState.MENU);
             selection = 0;
             updateCursor();
         }
@@ -1665,16 +2051,16 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         fight.selectPokemon("GENGAR");
         fight.selectPokemon("GARDEVOIR");
         fight.selectPokemon("RAICHU");
-        fight.selectPokemon("SLAKING");
-        fight.selectPokemon("SNORLAX");
+        fight.selectPokemon("DUSCLOPS");
+        fight.selectPokemon("METAGROSS");
         fight.selectPokemon("TYRANITAR");
 
         fight.nextTurn();
 
         fight.selectPokemon("DRAGONITE");
         fight.selectPokemon("CHARIZARD");
-        fight.selectPokemon("NIDORINO");
-        fight.selectPokemon("BLASTOISE");
+        fight.selectPokemon("ALAKAZAM");
+        fight.selectPokemon("ABSOL");
         fight.selectPokemon("VENUSAUR");
         fight.selectPokemon("TOGETIC");
 

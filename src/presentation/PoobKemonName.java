@@ -22,13 +22,13 @@ public class PoobKemonName extends JFrame implements KeyListener {
     private static final int COLS = 8, ROWS = 4, TOTAL = COLS * ROWS, MAX_NAME = 25;
 
     private final List<JLabel> gridLabels = new ArrayList<>();
-    private final JLabel       nameLabel;
+    private final JLabel nameLabel;
     private final StringBuilder playerName = new StringBuilder();
 
     private boolean upperCase  = true;
     private boolean teamChosen = false;
     private boolean isTeamAzul = true;
-    private int     selectedIndex = 0;
+    private int selectedIndex = 0;
 
     /**
      * Constructor de PoobKemonName
@@ -221,7 +221,7 @@ public class PoobKemonName extends JFrame implements KeyListener {
             return;
         }
         dispose();
-        new PoobKemonMode(fight);
+        new PoobKemonMode(fight, false);
     }
 
     /**

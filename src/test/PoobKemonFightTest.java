@@ -8,7 +8,6 @@ import org.junit.Test;
 
 import domain.PoobKemonFight;
 import domain.Trainer;
-
 import java.util.List;
 
 

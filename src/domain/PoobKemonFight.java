@@ -1,23 +1,45 @@
 package domain;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.io.Serializable;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.IOException;
 import java.util.List;
-import java.util.ArrayList;
-
 
 
 /**
  * Clase principal que maneja la seleccion y creacion de entrenadores y PoobKemons
  */
-public class PoobKemonFight {
+public class PoobKemonFight implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private transient Map<String, PoobKemonFactory> registry = new HashMap<>();
+    private transient Map<PoobKemon, Integer> hpMap = new HashMap<>();
+    private String lastPendingItem = null;
+
+    public enum UIState {
+        MENU,
+        BATTLE,
+        BACKPACK,
+        POKEMON_SELECT,
+        COMBAT,
+        ITEM_SELECT,
+        MOVE_SELECT,
+        LOG,
+        PAUSED
+    }
+
+    private UIState uiState = UIState.MENU;
+
     private Trainer trainer1;
     private Trainer trainer2;
     private final int initialPicker;
     private int turn;
-    private final Map<PoobKemon, Integer> hpMap = new HashMap<>();
-    private Map<String, PoobKemonFactory> registry = new HashMap<>();
     private boolean isOk;
+
 
     /**
      * Primer Constructor de PoobKemonFight
@@ -32,8 +54,8 @@ public class PoobKemonFight {
     /**
      * Segundo Constructor de PoobKemonFight
      *
-     * @param t1          representa el primer entrenador
-     * @param t2          representa el segundo entrenador
+     * @param t1 representa el primer entrenador
+     * @param t2 representa el segundo entrenador
      * @param firstPicker Indice del jugador que inicia el juego
      */
     public PoobKemonFight(Trainer t1, Trainer t2, int firstPicker) {
@@ -55,6 +77,7 @@ public class PoobKemonFight {
         for (PokemonData pd : PokemonData.values()) {
             registry.put(pd.name(), () -> new PoobKemonData(pd, this));
         }
+        ok();
     }
 
     /**
@@ -109,6 +132,7 @@ public class PoobKemonFight {
         } else {
             throw new IllegalArgumentException("Invalid position: " + position);
         }
+        ok();
     }
 
     /**
@@ -117,6 +141,7 @@ public class PoobKemonFight {
      * @return Trainer 1
      */
     public Trainer getTrainer1() {
+        ok();
         return trainer1;
     }
 
@@ -126,6 +151,7 @@ public class PoobKemonFight {
      * @return Trainer 2
      */
     public Trainer getTrainer2() {
+        ok();
         return trainer2;
     }
 
@@ -239,7 +265,7 @@ public class PoobKemonFight {
             trainer2.getTeam().clear();
             trainer2.resetUsedItemCount();
         }
-        combateLog.clear();
+        combatLog.clear();
         hpMap.clear();
         this.turn = initialPicker;
         ok();
@@ -635,6 +661,7 @@ public class PoobKemonFight {
     }
 
 
+    //Items
     /**
      * Permite usar las pociones y el revivir
      * @param item el objeto a usar sobre el pokemon
@@ -715,7 +742,26 @@ public class PoobKemonFight {
     }
 
 
-    private List<String> combateLog = new ArrayList<>();
+    /**
+     * El ultimo item usado
+     * @param item pociones y revivir
+     */
+    public void setLastPendingItem(String item) {
+        this.lastPendingItem = item;
+    }
+
+    /**
+     * Recuperamos el item que se uso
+     * @return el item
+     */
+    public String getLastPendingItem() {
+        return lastPendingItem;
+    }
+
+
+
+    private List<String> combatLog = new ArrayList<>();
+
 
     /**
      * Añade un mensaje al registro del combate
@@ -723,7 +769,7 @@ public class PoobKemonFight {
      */
     public void log(String msg) {
         ok();
-        combateLog.add(msg);
+        combatLog.add(msg);
     }
 
     /**
@@ -731,8 +777,8 @@ public class PoobKemonFight {
      * @return Una lista de los mensajes acumulados
      */
     public List<String> drainLog() {
-        List<String> tmp = new ArrayList<>(combateLog);
-        combateLog.clear();
+        List<String> tmp = new ArrayList<>(combatLog);
+        combatLog.clear();
         ok();
         return tmp;
     }
@@ -758,6 +804,56 @@ public class PoobKemonFight {
     }
 
 
+    //Salvar y guardar la partida
+    /**
+     * Serializa el estado completo de la partida a un archivo
+     */
+    public void saveToFile(String fileName) throws IOException {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName))) {
+            out.writeObject(this);
+        }
+    }
+
+    /**
+     * Carga un estado de juego previamente guardado
+     */
+    public static PoobKemonFight loadFromFile(String fileName)
+            throws IOException, ClassNotFoundException {
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName))) {
+            return (PoobKemonFight) in.readObject();
+        }
+    }
+
+
+    /**
+     * Se invoca automáticamente al deserializar el objeto.
+     */
+    private void readObject(ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        registry = new HashMap<>();
+        initRegistry();
+        hpMap = new HashMap<>();
+    }
+
+    /**
+     * Obtiene el estado de juego
+     * @return
+     */
+    public UIState getUiState() {
+        ok();
+        return uiState;
+    }
+
+
+    /**
+     * Da el estado actual del juego
+     * @param uiState
+     */
+    public void setUiState(UIState uiState) {
+        this.uiState = uiState;
+        ok();
+    }
 
     /**
      * Verifica que los metodos sean validos

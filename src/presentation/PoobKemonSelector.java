@@ -1,5 +1,7 @@
 package presentation;
 
+import domain.AITrainer;
+import domain.POOBKemonException;
 import domain.PoobKemonFight;
 import javax.swing.*;
 import java.awt.*;
@@ -40,6 +42,27 @@ public class PoobKemonSelector extends JFrame {
         this.fight = fight;
         this.initialPickerIndex = fight.getInitialPickerIndex();
         this.currentTurn = initialPickerIndex;
+
+        if (fight.getCurrentTrainer() instanceof AITrainer) {
+            AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+            try {
+                ai.autoSelectTeam(fight);
+                picksCount[currentTurn] = 6;
+            } catch (POOBKemonException ex) {
+                ex.printStackTrace();
+            }
+            if (currentTurn == initialPickerIndex) {
+                fight.nextTurn();
+                currentTurn = 1 - currentTurn;
+                String humanName = fight.getTrainerName(currentTurn);
+                String humanTeam = fight.getTrainerTeam(currentTurn);
+                showTurnDialog(humanName, humanTeam);
+            } else {
+                dispose();
+                new PoobKemonCombat(fight).setVisible(true);
+                return;
+            }
+        }
 
         setTitle("POOBKemon Selector");
         setSize(930, 673);
@@ -206,6 +229,20 @@ public class PoobKemonSelector extends JFrame {
         if (currentTurn == initialPickerIndex) {
             fight.nextTurn();
             currentTurn = 1 - currentTurn;
+
+            if (fight.getCurrentTrainer().isAI()) {
+                AITrainer ai = (AITrainer) fight.getCurrentTrainer();
+                try {
+                    ai.autoSelectTeam(fight);
+                    picksCount[currentTurn] = MAX_PICKS;
+                } catch (POOBKemonException ex) {
+                    ex.printStackTrace();
+                }
+                dispose();
+                new PoobKemonCombat(fight).setVisible(true);
+                return;
+            }
+
             showTurnDialog(
                     fight.getTrainerName(currentTurn),
                     fight.getTrainerTeam(currentTurn)
