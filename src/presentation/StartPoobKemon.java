@@ -18,15 +18,16 @@ public class StartPoobKemon extends JFrame {
         try (InputStream is = StartPoobKemon.class
                 .getResourceAsStream("/fonts/PressStart2P-Regular.ttf")) {
             Font pixel = Font.createFont(Font.TRUETYPE_FONT, is);
-            GraphicsEnvironment.getLocalGraphicsEnvironment()
-                    .registerFont(pixel);
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            ge.registerFont(pixel);
+            System.out.println("Custom font loaded: " + pixel.getFontName());
         } catch (FontFormatException | IOException e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * Constructor de StartScreen
+     * Constructor de StartPoobKemon
      */
     public StartPoobKemon() {
         setTitle("Poobkemon Emerald");

@@ -269,7 +269,6 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             }
         });
         fileMenu.add(load);
-
         return menuBar;
     }
 
@@ -277,7 +276,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
      * Para los mensajes de quitar daño de los movimientos de los pokemones
      * @param messages en lista de los movimientos
      */
-    private void displayLog(List<String> messages) {
+    protected void displayLog(List<String> messages) {
         this.logMessages = new ArrayList<>(messages);
         showBoardScreen();
         state = State.LOG;
@@ -291,6 +290,26 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                 handleLogAdvance();
                }).start();
         }
+    }
+
+
+    /**
+     * Inyecta un log personalizado sin disparar aun el dialogo de victoriaa
+     * @param fullLog el log en cierto estado
+     */
+    public void setLogMessages(List<String> fullLog) {
+        this.logMessages = new ArrayList<>(fullLog);
+    }
+
+    /**
+     * Para los mensajes pero sin temporisador
+     */
+    public void enterLogMode() {
+        showBoardScreen();
+        state = State.LOG;
+        fight.setUiState(UIState.LOG);
+        cursorLabel.setVisible(false);
+        repaint();
     }
 
 
@@ -419,7 +438,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                 JPanel panel = new JPanel(new BorderLayout());
                 panel.setBackground(bg);
                 JLabel lbl = new JLabel(message, SwingConstants.CENTER);
-                lbl.setFont(new Font("Press Start 2P", Font.PLAIN, 14));
+                lbl.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 14));
                 panel.add(lbl, BorderLayout.NORTH);
                 if (trophyIcon != null) {
                     JLabel iconLbl = new JLabel(trophyIcon, SwingConstants.CENTER);
@@ -688,7 +707,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         d.setLocationRelativeTo(this);
 
         JLabel lbl = new JLabel(message, SwingConstants.CENTER);
-        lbl.setFont(new Font("Press Start 2P", Font.PLAIN, 10));
+        lbl.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 10));
         lbl.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         d.add(lbl, BorderLayout.NORTH);
 
@@ -701,7 +720,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
         }
 
         JButton ok = new JButton("OK");
-        ok.setFont(new Font("Press Start 2P", Font.PLAIN, 10));
+        ok.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 10));
         ok.addActionListener(e -> d.dispose());
         JPanel p = new JPanel();
         p.setOpaque(false);
@@ -1071,7 +1090,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                     SwingConstants.CENTER
             );
 
-            lbl.setFont(new Font("Press Start 2P", Font.PLAIN, 14));
+            lbl.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 14));
             panel.add(lbl, BorderLayout.NORTH);
             if (trophyIcon != null) {
                 JLabel iconLbl = new JLabel(trophyIcon, SwingConstants.CENTER);
@@ -1244,9 +1263,9 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                 g.drawImage(bgImage, 0, 0, w, h, this);
             }
 
-            Font fontName = new Font("Press Start 2P", Font.BOLD, 23);
-            Font fontPlain = new Font("Press Start 2P", Font.PLAIN, 14);
-            Font fontBold = new Font("Press Start 2P", Font.BOLD, 14);
+            Font fontName = new Font("Press Start 2P Regular", Font.BOLD, 23);
+            Font fontPlain = new Font("Press Start 2P Regular", Font.PLAIN, 14);
+            Font fontBold = new Font("Press Start 2P Regular", Font.BOLD, 14);
 
             //Pokemon de frente
             g.setFont(fontName);
@@ -1324,7 +1343,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             g.drawString("PS", barX1 + barW - 40, textY1);
 
             if (state == State.LOG) {
-                Font fontLog = new Font("Press Start 2P", Font.PLAIN, 14);
+                Font fontLog = new Font("Press Start 2P Regular", Font.PLAIN, 14);
                 g.setFont(fontLog);
                 g.setColor(Color.BLACK);
                 FontMetrics fm = g.getFontMetrics();
@@ -1354,7 +1373,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                 int columnSpacing = 240;
                 int paddingY = 60;
 
-                Font fontMove = new Font("Press Start 2P", Font.PLAIN, 17);
+                Font fontMove = new Font("Press Start 2P Regular", Font.PLAIN, 17);
                 Font fontMoveBold = fontMove.deriveFont(Font.BOLD, 16f);
                 FontMetrics fm = g.getFontMetrics(fontMove);
                 int lineH = fm.getHeight() + 17;
@@ -1526,16 +1545,17 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
 
             for (int i = 0; i < teamKeys.size(); i++) {
                 Point slot = SLOT_POS[i];
+                //Dibujamos la pokebolas
+                int w = (i == selected) ? ICON_SIZE_OPENED : ICON_SIZE_CLOSED;
+                int h = w;
+                int x = slot.x - w / 2 - 10;
+                int y = slot.y - h / 2 - 3;
                 Image ball = (i == selected) ? openImage : closeImage;
                 if (ball != null) {
-                    int w = (i == selected) ? ICON_SIZE_OPENED : ICON_SIZE_CLOSED;
-                    int h = w;
-                    g.drawImage(ball,
-                            slot.x - w / 2 - 10,
-                            slot.y - h / 2 - 3,
-                            w, h, this);
+                    g.drawImage(ball, x, y, w, h, this);
                 }
 
+                //Dibuja el mini pokemon
                 Image m = minis[i];
                 if (m != null) {
                     int miniSize = 80;
@@ -1543,8 +1563,21 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                     int my = slot.y - miniSize / 2;
                     g.drawImage(m, mx, my, miniSize, miniSize, this);
                 }
+
+                //Si el pokemon muere le ponemos una X
+                String key = teamKeys.get(i);
+                if (parent.fight.isCurrentTrainerPokemonWeakened(key)) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setColor(new Color(255, 0, 0, 180));
+                    g2.setStroke(new BasicStroke(3));
+                    int pad = (int)(w * 0.1);
+                    g2.drawLine(x + pad, y + pad, x + w - pad, y + h - pad);
+                    g2.drawLine(x + pad, y + h - pad, x + w - pad, y + pad);
+                    g2.dispose();
+                }
             }
         }
+
 
 
         /**
@@ -1656,7 +1689,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             panelItems.setBounds(430, 80, 450, 400);
             panelItems.setOpaque(false);
             add(panelItems);
-            Font f = new Font("Press Start 2P", Font.PLAIN, 24);
+            Font f = new Font("Press Start 2P Regular", Font.PLAIN, 24);
             labelsItems = new JLabel[items.length];
             for (int i = 0; i < items.length; i++) {
                 int count = parent.fight.getItemCount(items[i]);
@@ -1687,7 +1720,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             description.setOpaque(false);
             description.setEditable(false);
             description.setForeground(Color.BLACK);
-            description.setFont(new Font("Press Start 2P", Font.PLAIN, 15));
+            description.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 15));
 
             JScrollPane scrollPane = new JScrollPane(description);
             scrollPane.setOpaque(false);
@@ -1793,7 +1826,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
          * Muestra la descripcion en un panel de abajo a la izquierda
          */
         private void showDescription() {
-            description.setFont(new Font("Press Start 2P", Font.PLAIN, 14));
+            description.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 14));
 
             boolean limitReached = parent.fight.getUsedItemCount() >= 2;
             if (limitReached) {
@@ -1901,7 +1934,7 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
                     ? new String[]{ "USAR", "SALIR" }
                     : new String[]{ "SALIR" };
 
-            Font f = new Font("Press Start 2P", Font.PLAIN, 14);
+            Font f = new Font("Press Start 2P Regular", Font.PLAIN, 14);
             labelsOptions = new JLabel[panelOptionsOpts.length];
             for (int i = 0; i < panelOptionsOpts.length; i++) {
                 labelsOptions[i] = new JLabel(panelOptionsOpts[i]);
@@ -2040,35 +2073,5 @@ public class PoobKemonCombat extends JFrame implements KeyListener {
             }
         }
 
-    }
-
-    public static void main(String[] args) {
-        Trainer t1 = new Trainer("Ash", "azul");
-        Trainer t2 = new Trainer("Misty", "rojo");
-
-        PoobKemonFight fight = new PoobKemonFight(t1, t2, 1);
-
-        fight.selectPokemon("GENGAR");
-        fight.selectPokemon("GARDEVOIR");
-        fight.selectPokemon("RAICHU");
-        fight.selectPokemon("DUSCLOPS");
-        fight.selectPokemon("METAGROSS");
-        fight.selectPokemon("TYRANITAR");
-
-        fight.nextTurn();
-
-        fight.selectPokemon("DRAGONITE");
-        fight.selectPokemon("CHARIZARD");
-        fight.selectPokemon("ALAKAZAM");
-        fight.selectPokemon("ABSOL");
-        fight.selectPokemon("VENUSAUR");
-        fight.selectPokemon("TOGETIC");
-
-        fight.resetTurnToInitial();
-
-        SwingUtilities.invokeLater(() -> {
-            PoobKemonCombat window = new PoobKemonCombat(fight);
-            window.setVisible(true);
-        });
     }
 }

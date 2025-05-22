@@ -19,6 +19,7 @@ public class PoobKemonFight implements Serializable {
     private transient Map<String, PoobKemonFactory> registry = new HashMap<>();
     private transient Map<PoobKemon, Integer> hpMap = new HashMap<>();
     private String lastPendingItem = null;
+    private final List<String> combateLog = new ArrayList<>();
 
     public enum UIState {
         MENU,
@@ -661,6 +662,63 @@ public class PoobKemonFight implements Serializable {
     }
 
 
+    /**
+     * @return 0 para entrenador 1, 1 para entrenador 2, según el turno actual
+     */
+    public int getCurrentTurnIndex() {
+        ok();
+        return turn - 1;
+    }
+
+
+    /**
+     * Ejecuta una accion de combate avanza turnos gestiona los pokemones muertos y switches de IA
+     */
+    public List<String> handleTurn(String actionType, Object parameter) {
+        switch(actionType) {
+            case "MOVE":
+                useMove((Integer) parameter);
+                break;
+            case "ITEM":
+                useItem((String) parameter);
+                break;
+            case "SWITCH":
+                switchActivePokemon((String) parameter);
+                break;
+            case "RUN":
+                log(getCurrentTrainer().getName() + " huyó de la batalla.");
+                resetSelection();
+                return drainLog();
+            default:
+                throw new IllegalArgumentException("Acción desconocida: " + actionType);
+        }
+
+        List<String> turnLog = drainLog();
+
+        for (int i = 0; i < 2; i++) {
+            if (isTrainerDefeated(i)) {
+                log(getTrainerName(1 - i) + " ha ganado la batalla!");
+                turnLog.addAll(drainLog());
+                return turnLog;
+            }
+        }
+
+        nextTurn();
+
+        Trainer t = getCurrentTrainer();
+        if (t.isAI() && getPokemonCurrentHp(getCurrentTurnIndex()) == 0) {
+            AITrainer ai = (AITrainer) t;
+            int idx = ai.autoChooseSwitch(this);
+            String key = t.getTeam().get(idx).getName().toUpperCase();
+            switchActivePokemon(key);
+            log(t.getName() + " (IA) cambió a " + t.getTeam().get(idx).getName() + ".");
+        }
+
+        turnLog.addAll(drainLog());
+        return turnLog;
+    }
+
+
     //Items
     /**
      * Permite usar las pociones y el revivir
@@ -854,6 +912,7 @@ public class PoobKemonFight implements Serializable {
         this.uiState = uiState;
         ok();
     }
+
 
     /**
      * Verifica que los metodos sean validos

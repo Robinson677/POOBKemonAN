@@ -18,7 +18,7 @@ public class PoobKemonData extends PoobKemon implements Serializable {
     /**
      * Constructor de PoobKemonData
      * @param data Datos de los pokemones
-     * @param fight
+     * @param fight Logica del combate
      */
     public PoobKemonData(PokemonData data, PoobKemonFight fight) {
         super(

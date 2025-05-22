@@ -22,7 +22,7 @@ public class AITrainer extends Trainer {
     public AITrainer(String name, String teamColor, BattleStrategy strategy, String key) {
         super(name, teamColor);
         this.strategy = strategy;
-        this.strategyKey   = key;
+        this.strategyKey = key;
     }
 
     /**
@@ -105,7 +105,10 @@ public class AITrainer extends Trainer {
         }
     }
 
-
+    /**
+     * Verifica si el
+     * @return
+     */
     @Override
     public boolean isAI() {
         return true;

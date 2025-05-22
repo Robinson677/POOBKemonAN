@@ -123,7 +123,7 @@ public class PoobKemonSelector extends JFrame {
         int imgSize = 120;
 
         lblName = new JLabel("PoobKemon", SwingConstants.CENTER);
-        lblName.setFont(new Font("Press Start 2P", Font.BOLD, 13));
+        lblName.setFont(new Font("Press Start 2P Regular", Font.BOLD, 13));
         lblName.setForeground(Color.BLACK);
         lblName.setBounds(miniStartX + (miniWidth - 200)/2, 69, 200, 25);
         detail.add(lblName);
@@ -136,7 +136,7 @@ public class PoobKemonSelector extends JFrame {
         detail.add(imgPok);
 
         lblType = new JLabel("Tipo: --", SwingConstants.CENTER);
-        lblType.setFont(new Font("Press Start 2P", Font.BOLD, 8));
+        lblType.setFont(new Font("Press Start 2P Regular", Font.BOLD, 8));
         lblType.setForeground(Color.BLACK);
         lblType.setBounds(miniStartX + (miniWidth - 180)/2, 160, 180, 20);
         detail.add(lblType);
@@ -169,7 +169,7 @@ public class PoobKemonSelector extends JFrame {
                         "Atq. Esp.: --\n" +
                         "Def. Esp.: --"
         );
-        txtStats.setFont(new Font("Press Start 2P", Font.PLAIN, 12));
+        txtStats.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 12));
         txtStats.setEditable(false);
         txtStats.setOpaque(false);
         txtStats.setForeground(new Color(30, 30, 30));
@@ -317,7 +317,7 @@ public class PoobKemonSelector extends JFrame {
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JLabel top = new JLabel("Elegir a " + fight.getDisplayName(key), SwingConstants.CENTER);
-        top.setFont(new Font("Press Start 2P", Font.BOLD, 14));
+        top.setFont(new Font("Press Start 2P Regular", Font.BOLD, 14));
         content.add(top, BorderLayout.NORTH);
 
         Image usosImg = loadImage("/pokemonPictures/PokebolaClose.png");
@@ -386,7 +386,7 @@ public class PoobKemonSelector extends JFrame {
                 ? String.format("Elije un Pokémon %s del team %s", trainerName, teamColor)
                 : String.format("Turno de %s", trainerName);
         JLabel txt = new JLabel(mensaje, SwingConstants.CENTER);
-        txt.setFont(new Font("Press Start 2P", Font.PLAIN, 8));
+        txt.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 8));
         txt.setBorder(BorderFactory.createEmptyBorder(10, 10, 0, 10));
         d.add(txt, BorderLayout.NORTH);
 
@@ -402,7 +402,7 @@ public class PoobKemonSelector extends JFrame {
         }
 
         JButton ok = new JButton("OK");
-        ok.setFont(new Font("Press Start 2P", Font.PLAIN, 10));
+        ok.setFont(new Font("Press Start 2P Regular", Font.PLAIN, 10));
         ok.addActionListener(e -> d.dispose());
         JPanel pnl = new JPanel();
         pnl.setOpaque(false);
